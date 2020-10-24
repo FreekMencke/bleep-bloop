@@ -1,5 +1,8 @@
-import { IGlobalConfig } from './config.global';
+export interface IConfig {
+  botChannel: string;
+  botName: string;
 
-export interface IConfig extends IGlobalConfig {
-  apiUrl: string;
+  games: string[];
+
+  token: string;
 }

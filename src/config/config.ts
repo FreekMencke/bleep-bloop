@@ -1,8 +1,10 @@
 import { IConfig } from './config.interface';
-import { globalConfig } from './config.global';
 
 export const config: IConfig = {
-  ...globalConfig,
+  botChannel: 'botspam',
+  botName: 'BleepBloop',
 
-  apiUrl: 'http://a-production-url',
+  games: ['wow'],
+
+  token: 'NzY5NTg4OTM4MzEzODI2MzY0.X5RNjQ.Pcf2s5OIO22FYd96_cd09KGDWgQ',
 };

@@ -1,9 +1,10 @@
 {
   "compilerOptions": {
-    "target": "esnext",
-    "module": "esnext",
+    "outDir": "dist",
+    "target": "es2020",
+    "module": "commonjs",
     "moduleResolution": "node",
-    "lib": ["dom", "es2020"],
+    "lib": ["dom", "es2018"],
     "allowSyntheticDefaultImports": true,
     "experimentalDecorators": true,
     "noUnusedLocals": true,
