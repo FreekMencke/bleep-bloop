@@ -1,6 +1,6 @@
 import { Client, Message, TextChannel } from 'discord.js';
-import { config } from '../../config/config';
 import { Logger } from '../common/logger';
+import { config } from '../config/config';
 
 export class GameRoleManager {
   readonly CLASS_NAME: string = 'GAME_ROLE_MANAGER';
@@ -18,12 +18,12 @@ export class GameRoleManager {
     this.gameRoleChannel = await channel.fetch() as TextChannel;
     await this.gameRoleChannel.messages.fetch();
 
-    this.createGameRoleMessage();
+    this.createGameRoleMessage(client);
   }
 
-  private async createGameRoleMessage(): Promise<void> {
+  private async createGameRoleMessage(client: Client): Promise<void> {
     const botMessages = Array.from(this.gameRoleChannel.messages.cache.values())
-      .filter(message => message.author.username === config.botName && message.pinned);
+      .filter(message => message.author.id === client.user!.id && message.pinned);
 
     if (botMessages.length === 0) {
       this.gameRoleMessage = await this.gameRoleChannel.send('Game message placeholder');

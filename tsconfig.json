@@ -13,5 +13,5 @@
     "typeRoots": ["node_modules/@types"],
   },
   "exclude": ["node_modules"],
-  "include": ["src/**/*.ts", "src/config/token.ts"]
+  "include": ["src/**/*.ts"]
 }

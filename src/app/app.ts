@@ -1,6 +1,6 @@
 import { Client, Message, PartialMessage, TextChannel } from 'discord.js';
-import { config } from '../config/config';
 import { CommandParser } from './commands/command-parser';
+import { config } from './config/config';
 import { GameRoleManager } from './games/game-role.manager';
 
 export class App {
