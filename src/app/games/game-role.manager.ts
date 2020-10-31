@@ -15,15 +15,16 @@ export class GameRoleManager {
     if (!channel) {
       throw Error(config.botChannel + ' is not a text channel.');
     }
-    this.gameRoleChannel = await channel.fetch() as TextChannel;
+    this.gameRoleChannel = (await channel.fetch()) as TextChannel;
     await this.gameRoleChannel.messages.fetch();
 
     this.createGameRoleMessage(client);
   }
 
   private async createGameRoleMessage(client: Client): Promise<void> {
-    const botMessages = Array.from(this.gameRoleChannel.messages.cache.values())
-      .filter(message => message.author.id === client.user!.id && message.pinned);
+    const botMessages = Array.from(this.gameRoleChannel.messages.cache.values()).filter(
+      message => message.author.id === client.user!.id && message.pinned,
+    );
 
     if (botMessages.length === 0) {
       this.gameRoleMessage = await this.gameRoleChannel.send('Game message placeholder');
@@ -36,5 +37,4 @@ export class GameRoleManager {
       Logger.log(this.CLASS_NAME + ': GAME ROLE MESSAGE IN', `"${config.botChannel}"`, 'ALREADY EXISTS');
     }
   }
-
 }

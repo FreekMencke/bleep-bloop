@@ -5,10 +5,7 @@ import { Command } from './command.interface';
 export class DeleteAllCommand implements Command {
   readonly CLASS_NAME: string = 'DELETE_ALL_COMMAND';
 
-  constructor(
-    private message: Message | PartialMessage,
-    private users: User[],
-  ) { }
+  constructor(private message: Message | PartialMessage, private users: User[]) {}
 
   async execute(): Promise<any> {
     const usernameList = this.getList(this.users.map(usr => usr.username));
@@ -17,13 +14,15 @@ export class DeleteAllCommand implements Command {
     const channel = this.message.channel as TextChannel;
     await channel.messages.fetch({ limit: 100 });
 
-    await Promise.all(this.users.map(async user => {
-      const userMessages = Array.from(channel.messages.cache.values())
-        .filter(msg => msg.author.id === user!.id)
-        .filter(msg => msg.id !== this.message.id);
+    await Promise.all(
+      this.users.map(async user => {
+        const userMessages = Array.from(channel.messages.cache.values())
+          .filter(msg => msg.author.id === user!.id)
+          .filter(msg => msg.id !== this.message.id);
 
-      return channel.bulkDelete(userMessages);
-    }));
+        return channel.bulkDelete(userMessages);
+      }),
+    );
 
     Logger.log(this.CLASS_NAME + ': FINISHED DELETING ALL MESSAGES FOR', usernameList);
     await this.message.delete();
@@ -34,13 +33,12 @@ export class DeleteAllCommand implements Command {
 
   private getList(string: string[]): string {
     return string.reduce((acc, string) => {
-      if (acc.length> 0) acc += ', ';
-      return acc += string;
+      if (acc.length > 0) acc += ', ';
+      return (acc += string);
     }, '');
   }
 
   private getMention(user: User): string {
     return `<@!${user.id}>`;
   }
-
 }

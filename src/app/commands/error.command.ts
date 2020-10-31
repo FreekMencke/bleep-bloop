@@ -6,14 +6,11 @@ export class ErrorCommand implements Command {
 
   private errorMessages: string[];
 
-  constructor(
-    ...errorMessages: string[]
-  ) {
-    this.errorMessages= errorMessages;
+  constructor(...errorMessages: string[]) {
+    this.errorMessages = errorMessages;
   }
 
   execute(): any {
     Logger.log(this.CLASS_NAME + ':', ...this.errorMessages);
   }
-
 }

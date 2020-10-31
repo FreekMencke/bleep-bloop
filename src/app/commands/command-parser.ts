@@ -19,14 +19,18 @@ export class CommandParser {
   private async getCommand(message: Message | PartialMessage): Promise<Command> {
     const commandArgs = message.toString().substring(1).split(' ');
 
-    switch(commandArgs[0]) {
+    switch (commandArgs[0]) {
       case 'react':
         return new ReactCommand(message, commandArgs[1]);
       case 'delete-all':
       case 'da':
         const users = message.mentions.users.array();
-        if(users.length === 0) {
-          Logger.log(this.CLASS_NAME + ': COMMAND "delete-all" FROM', message.author!.username, 'CONTAINED NO PARAMETERS');
+        if (users.length === 0) {
+          Logger.log(
+            this.CLASS_NAME + ': COMMAND "delete-all" FROM',
+            message.author!.username,
+            'CONTAINED NO PARAMETERS',
+          );
           await message.delete();
           return new ErrorCommand('FAILED TO EXECUTE "delete-all"');
         }
@@ -35,5 +39,4 @@ export class CommandParser {
         return new ErrorCommand('COMMAND', `"${message.toString()}"`, 'NOT FOUND');
     }
   }
-
 }
