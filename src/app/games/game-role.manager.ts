@@ -2,12 +2,6 @@ import { CategoryChannel, Client, Guild, Message, MessageReaction, Role, TextCha
 import { Logger } from '../common/logger';
 import { config } from '../config/config';
 import { Game, GameData } from './game-models';
-/**
- * TODO:
- * On startup process already put emojis
- * Do not display games without emoji
- * Games without emoji must share role
- */
 
 export class GameRoleManager {
   readonly CLASS_NAME: string = 'GAME_ROLE_MANAGER:';
@@ -22,27 +16,28 @@ export class GameRoleManager {
   gameRoleMessage!: Message;
 
   async init(client: Client) {
-    const guild = await (await client.guilds.fetch(config.guild)).fetch();
-    this.guild = guild;
+    this.guild = await (await client.guilds.fetch(config.guild)).fetch();
 
-    this.everyoneRole = guild.roles.cache.find(role => role.name === '@everyone')!;
+    this.everyoneRole = this.guild.roles.cache.find(role => role.name === '@everyone')!;
 
-    const botCategory = guild.channels.cache.find(channel => channel.name === config.botCategory && channel.type === 'category');
-    this.botCategory = await botCategory!.fetch() as CategoryChannel;
+    this.botCategory = await this.guild.channels.cache.find(channel => channel.name === config.botCategory && channel.type === 'category')!.fetch() as CategoryChannel;
 
-    const gameCategory = guild.channels.cache.find(channel => channel.name === config.gameCategory && channel.type === 'category')
-      ?? await guild.channels.create(config.gameCategory, { type: 'category' });
-    this.gameCategory = await gameCategory!.fetch() as CategoryChannel;
+    this.gameCategory = await (
+      this.guild.channels.cache.find(channel => channel.name === config.gameCategory && channel.type === 'category')
+      ?? await this.guild.channels.create(config.gameCategory, { type: 'category' })
+    ).fetch() as CategoryChannel;
 
-    const roleChannel = guild.channels.cache.find(channel => channel.name === config.gameRoleChannel && channel.type === 'text')
-      ?? await guild.channels.create(config.gameRoleChannel, { type: 'text', position: 0, permissionOverwrites: [{ deny: ['SEND_MESSAGES', 'ADD_REACTIONS'], id: this.everyoneRole }] });
+    this.gameRoleChannel = await (
+      this.guild.channels.cache.find(channel => channel.name === config.gameRoleChannel && channel.type === 'text')
+      ?? await this.guild.channels.create(config.gameRoleChannel, { type: 'text', position: 0, permissionOverwrites: [{ deny: ['SEND_MESSAGES', 'ADD_REACTIONS'], id: this.everyoneRole }] })
+    ).fetch() as TextChannel;
 
-    const dataChannel = guild.channels.cache.find(channel => channel.name === config.gameDataChannel && channel.type === 'text')
-      ?? await guild.channels.create(config.gameDataChannel, { type: 'text', parent: this.botCategory });
+    this.gameDataChannel = await (
+      this.guild.channels.cache.find(channel => channel.name === config.gameDataChannel && channel.type === 'text')
+      ?? await this.guild.channels.create(config.gameDataChannel, { type: 'text', parent: this.botCategory })
+    ).fetch() as TextChannel;
 
     Logger.log(this.CLASS_NAME, 'FOUND', config.gameRoleChannel, 'AND', config.gameDataChannel, 'TEXT CHANNEL.');
-    this.gameRoleChannel = await roleChannel.fetch() as TextChannel;
-    this.gameDataChannel = await dataChannel.fetch() as TextChannel;
 
     await this.gameRoleChannel.messages.fetch();
 
@@ -51,72 +46,75 @@ export class GameRoleManager {
     await this.sortChannelsAndRoles();
 
     this.gameDataChannel.createMessageCollector((message: Message) => message.author.id !== message.client.user?.id)
-      .on('collect', async (message: Message) => {
-        Logger.log(this.CLASS_NAME, 'PROCESSING GAME DATA MESSAGE', message.content);
-        try {
-          const game = JSON.parse(message.content) as Game;
-          const games = await this.fetchGameDatas();
-
-          if (games.find(g => g.channelName === game.channelName)) throw 'DUPLICATE CHANNEL NAME';
-
-          const foundGame = games.find(g => g.id == game.id);
-          if (foundGame) {
-            Logger.log(this.CLASS_NAME, 'EXISTING GAME');
-            await this.updateGame(foundGame, game);
-          } else {
-            Logger.log(this.CLASS_NAME, 'NEW GAME');
-            await this.addGame(game);
-          }
-          await message.delete();
-          this.sortChannelsAndRoles();
-          this.createGameRoleMessage();
-        }
-        catch (err) {
-          Logger.log(this.CLASS_NAME, 'FAILED TO PARSE INPUT');
-          Logger.log(this.CLASS_NAME, err);
-        }
-      });
+      .on('collect', (message) => this.processGameDataMessage(message));
 
     this.gameRoleMessage.createReactionCollector((message: MessageReaction, reactingUser: User) => reactingUser.id !== reactingUser.client.user?.id)
-      .on('collect', async (message: MessageReaction, reactingUser: User) => {
-        const games = await this.fetchGameDatas();
+      .on('collect', (message: MessageReaction, reactingUser: User) => this.processGameRoleMessageReaction(message, reactingUser));
 
-        Logger.log(this.CLASS_NAME, 'USER', reactingUser.username, 'REACTED WITH', message.emoji.name);
-        const guildMember = await (await this.guild.members.fetch(reactingUser.id)).fetch();
-        const guildMemberRoles = guildMember.roles.cache.array();
-        const game = games.find(game => game.emoji === (message.emoji).name)!;
-
-        if (guildMemberRoles.some(role => role.name === game.roleName)) {
-          await guildMember.roles.remove(game.role!);
-          Logger.log(this.CLASS_NAME, 'REMOVED ROLE', game.roleName, 'FROM USER', reactingUser.username);
-        }
-        else {
-          if (!guildMemberRoles.find(guildMemberRole => guildMemberRole.name === config.gameRoleName)) {
-            const gameRole = this.guild.roles.cache.find(role => role.name === config.gameRoleName);
-            if (gameRole) guildMember.roles.add(gameRole);
-          }
-          await guildMember.roles.add(game.role!);
-          Logger.log(this.CLASS_NAME, 'ADDED ROLE', game.roleName, 'TO USER', reactingUser.username);
-        }
-
-        await message.users.remove(reactingUser.id);
-      });
     Logger.log(this.CLASS_NAME, 'FINISHED INITIALISING');
+  }
+
+  private async processGameDataMessage(message: Message) {
+    Logger.log(this.CLASS_NAME, 'PROCESSING GAME DATA MESSAGE', message.content);
+    try {
+      const game = JSON.parse(message.content) as Game;
+      const games = await this.fetchGameDatas();
+
+      if (games.find(g => g.channelName === game.channelName)) throw 'DUPLICATE CHANNEL NAME';
+
+      const foundGame = games.find(g => g.id == game.id);
+      if (foundGame) {
+        Logger.log(this.CLASS_NAME, 'EXISTING GAME');
+        await this.updateGame(foundGame, game);
+      } else {
+        Logger.log(this.CLASS_NAME, 'NEW GAME');
+        await this.addGame(game);
+      }
+      await message.delete();
+      await this.sortChannelsAndRoles();
+      await this.createGameRoleMessage();
+    }
+    catch (err) {
+      Logger.log(this.CLASS_NAME, 'FAILED TO PARSE INPUT');
+      Logger.log(this.CLASS_NAME, err);
+    }
+  }
+
+  private async processGameRoleMessageReaction(message: MessageReaction, reactingUser: User) {
+    const games = await this.fetchGameDatas();
+
+    Logger.log(this.CLASS_NAME, 'USER', reactingUser.username, 'REACTED WITH', message.emoji.name);
+    const guildMember = await (await this.guild.members.fetch(reactingUser.id)).fetch();
+    const guildMemberRoles = guildMember.roles.cache.array();
+    const game = games.find(game => game.emoji === (message.emoji).name)!;
+
+    if (guildMemberRoles.some(role => role.name === game.roleName)) {
+      await guildMember.roles.remove(game.role!);
+      Logger.log(this.CLASS_NAME, 'REMOVED ROLE', game.roleName, 'FROM USER', reactingUser.username);
+    }
+    else {
+      if (!guildMemberRoles.find(guildMemberRole => guildMemberRole.name === config.gameRoleName)) {
+        const gameRole = this.guild.roles.cache.find(role => role.name === config.gameRoleName);
+        if (gameRole) guildMember.roles.add(gameRole);
+      }
+      await guildMember.roles.add(game.role!);
+      Logger.log(this.CLASS_NAME, 'ADDED ROLE', game.roleName, 'TO USER', reactingUser.username);
+    }
+
+    await message.users.remove(reactingUser.id);
   }
 
   private async initData() {
     await this.gameDataChannel.messages.fetch();
+    await this.guild.fetch();
     await this.guild.roles.fetch();
 
-    const roles = this.guild.roles.cache.array();
-    const channels = this.guild.channels.cache.array();
-
-    await Promise.all(this.gameDataChannel.messages.cache.array().map(async dataMessage => {
+    await Promise.all(this.gameDataChannel.messages.cache.map(async dataMessage => {
       const game = JSON.parse(dataMessage.content) as Game;
-      const role = roles.find(role => role.name === game.roleName)
+      const role = this.guild.roles.cache.find(role => role.name === game.roleName)
         ?? await this.guild.roles.create({ data: { name: game.roleName, color: parseInt(game.color, 16) } });
 
-      let channel = channels.find(channel => channel.name === game.channelName);
+      let channel = this.guild.channels.cache.find(channel => channel.name === game.channelName);
       if (channel) {
         channel.overwritePermissions([
           { deny: ['VIEW_CHANNEL'], id: this.everyoneRole },
@@ -147,19 +145,18 @@ export class GameRoleManager {
     await this.gameDataChannel.fetch();
     return this.gameDataChannel.messages.cache
       .filter(m => m.author.id === m.client.user?.id)
-      .map(m => {
-        const gameData: GameData = JSON.parse(m.content);
-        gameData.message = m;
-        gameData.role = this.guild.roles.cache.find(r => r.name === gameData.roleName);
-        gameData.channel = this.guild.channels.cache.find(c => c.name === gameData.channelName) as TextChannel;
-        return gameData;
-      });
+      .map(m => [m, JSON.parse(m.content)])
+      .map(([m, parsedContent]) => ({
+        ...parsedContent,
+        message: m,
+        role: this.guild.roles.cache.find(r => r.name === parsedContent.roleName)!,
+        channel: this.guild.channels.cache.find(c => c.name === parsedContent.channelName) as TextChannel,
+      }));
   }
 
   private async addGame(gameInput: Game) {
     await this.guild.roles.fetch();
-    const roles = this.guild.roles.cache.array();
-    const role = roles.find(role => role.name === gameInput.roleName)
+    const role = this.guild.roles.cache.find(role => role.name === gameInput.roleName)
       ?? await this.guild.roles.create({ data: { name: gameInput.roleName, color: parseInt(gameInput.color, 16) } });
     await this.gameDataChannel.send(JSON.stringify(gameInput));
     await this.guild.channels.create(gameInput.channelName,
@@ -174,10 +171,10 @@ export class GameRoleManager {
   }
 
   private async updateGame(originalGame: GameData, newGame: Game) {
-    await originalGame.role?.setName(newGame.roleName);
-    await originalGame.role?.setColor(newGame.color);
-    await originalGame.channel?.setName(newGame.channelName);
-    await originalGame.message?.edit(JSON.stringify(newGame));
+    await originalGame.role.setName(newGame.roleName);
+    await originalGame.role.setColor(newGame.color);
+    await originalGame.channel.setName(newGame.channelName);
+    await originalGame.message.edit(JSON.stringify(newGame));
 
     Logger.log(this.CLASS_NAME, 'UPDATED GAME');
   }
@@ -191,9 +188,9 @@ export class GameRoleManager {
       await this.gameRoleMessage.pin();
 
       await this.gameRoleChannel.messages.fetch();
-      const pinAddedMessages = this.gameRoleChannel.messages.cache.array()
-        .filter(message => message.type === 'PINS_ADD');
-      await Promise.all(pinAddedMessages.map(message => message.delete()));
+      await Promise.all(this.gameRoleChannel.messages.cache
+        .filter(message => message.type === 'PINS_ADD')
+        .map(message => message.delete()));
 
       Logger.log(this.CLASS_NAME, 'CREATED GAME ROLE MESSAGE IN:', config.gameRoleChannel);
     } else {

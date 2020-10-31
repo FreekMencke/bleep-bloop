@@ -6,7 +6,7 @@ export const config: IConfig = {
 
   botCategory: 'bot-channels',
   gameCategory: 'games',
-  gameRoleChannel: 'information',
+  gameRoleChannel: 'readme',
   gameDataChannel: 'game-data',
   gameRoleName: '— — — — — Games — — — — —',
 

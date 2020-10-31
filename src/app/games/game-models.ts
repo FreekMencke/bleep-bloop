@@ -6,11 +6,11 @@ export interface Game {
   color: string;
   roleName: string;
   channelName: string;
-  emoji: string;
+  emoji: string | null;
 }
 
 export interface GameData extends Game {
-  message?: Message;
-  role?: Role;
-  channel?: TextChannel;
+  message: Message;
+  role: Role;
+  channel: TextChannel;
 }
