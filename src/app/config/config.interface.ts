@@ -1,6 +1,5 @@
 export interface IConfig {
   botChannel: string;
-  botName: string;
 
   botCategory: string;
   gameCategory: string;

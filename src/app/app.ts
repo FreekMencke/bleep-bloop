@@ -1,6 +1,6 @@
 import { Client, Message, PartialMessage, TextChannel } from 'discord.js';
-import { config } from '../config/config';
 import { CommandParser } from './commands/command-parser';
+import { config } from './config/config';
 import { GameRoleManager } from './games/game-role.manager';
 
 export class App {
@@ -22,7 +22,7 @@ export class App {
     await this.initCategory();
     await this.gameRoleManager.init(this.client);
 
-    this.client.on('message', (msg) => this.onMessage(msg));
+    this.client.on('message', msg => this.onMessage(msg));
     this.client.on('messageUpdate', (_, msg) => this.onMessage(msg));
   }
 
@@ -40,5 +40,4 @@ export class App {
       ?? await guild.channels.create(config.botCategory, { type: 'category', position: 1000 });
     if (!botCategory) throw Error('CATEGORY ' + config.botCategory + ' NOT FOUND');
   }
-
 }

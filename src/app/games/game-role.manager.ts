@@ -1,8 +1,7 @@
 import { CategoryChannel, Client, Guild, Message, MessageReaction, Role, TextChannel, User } from 'discord.js';
-import { config } from '../../config/config';
 import { Logger } from '../common/logger';
+import { config } from '../config/config';
 import { Game, GameData } from './game-models';
-
 /**
  * TODO:
  * On startup process already put emojis
@@ -21,11 +20,8 @@ export class GameRoleManager {
   gameDataChannel!: TextChannel;
   gameRoleChannel!: TextChannel;
   gameRoleMessage!: Message;
-  clientId: string = '';
 
   async init(client: Client) {
-    this.clientId = client.user?.id as string;
-
     const guild = await (await client.guilds.fetch(config.guild)).fetch();
     this.guild = guild;
 
@@ -54,7 +50,7 @@ export class GameRoleManager {
     await this.createGameRoleMessage();
     await this.sortChannelsAndRoles();
 
-    this.gameDataChannel.createMessageCollector((message: Message) => message.author.id !== this.clientId)
+    this.gameDataChannel.createMessageCollector((message: Message) => message.author.id !== message.client.user?.id)
       .on('collect', async (message: Message) => {
         Logger.log(this.CLASS_NAME, 'PROCESSING GAME DATA MESSAGE', message.content);
         try {
@@ -81,11 +77,9 @@ export class GameRoleManager {
         }
       });
 
-    this.gameRoleMessage.createReactionCollector((message: MessageReaction, reactingUser: User) => reactingUser.id !== this.clientId)
+    this.gameRoleMessage.createReactionCollector((message: MessageReaction, reactingUser: User) => reactingUser.id !== reactingUser.client.user?.id)
       .on('collect', async (message: MessageReaction, reactingUser: User) => {
         const games = await this.fetchGameDatas();
-
-        if (reactingUser.id === this.clientId) return;
 
         Logger.log(this.CLASS_NAME, 'USER', reactingUser.username, 'REACTED WITH', message.emoji.name);
         const guildMember = await (await this.guild.members.fetch(reactingUser.id)).fetch();
@@ -144,7 +138,7 @@ export class GameRoleManager {
   private async fetchGames() {
     await this.gameDataChannel.fetch();
     return this.gameDataChannel.messages.cache
-      .filter(m => m.author.id === this.clientId)
+      .filter(m => m.author.id === m.client.user?.id)
       .map(m => JSON.parse(m.content) as Game);
   }
 
@@ -152,7 +146,7 @@ export class GameRoleManager {
     await this.guild.fetch();
     await this.gameDataChannel.fetch();
     return this.gameDataChannel.messages.cache
-      .filter(m => m.author.id === this.clientId)
+      .filter(m => m.author.id === m.client.user?.id)
       .map(m => {
         const gameData: GameData = JSON.parse(m.content);
         gameData.message = m;
@@ -190,7 +184,7 @@ export class GameRoleManager {
 
   private async createGameRoleMessage(): Promise<void> {
     const botMessages = this.gameRoleChannel.messages.cache.array()
-      .filter(message => message.author.id === this.clientId && message.pinned);
+      .filter(message => message.author.id === message.client.user?.id && message.pinned);
 
     if (botMessages.length === 0) {
       this.gameRoleMessage = await this.gameRoleChannel.send('Game message placeholder');
@@ -222,7 +216,7 @@ export class GameRoleManager {
       Logger.log(this.CLASS_NAME, 'CLEARED AND RE-ADDING ALL GAME EMOJI REACTIONS');
       await this.gameRoleMessage.reactions.removeAll();
       await Promise.all(games.map(async game =>
-        this.gameRoleMessage.react(game.emoji)
+        game.emoji && this.gameRoleMessage.react(game.emoji)
       ));
     } else Logger.log(this.CLASS_NAME, 'ALL GAME REACTIONS PRESENT');
 
