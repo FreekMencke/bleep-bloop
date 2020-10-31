@@ -1,11 +1,17 @@
-import { IConfig } from './config.interface';
+import { Guild, IConfig } from './config.interface';
 import { TOKEN } from './token.hidden';
 
 export const config: IConfig = {
   botChannel: 'botspam',
-  botName: 'BleepBloop',
+  botName: 'BAMBot',
 
-  games: ['wow'],
+  botCategory: 'bot-channels',
+  gameCategory: 'games',
+  gameRoleChannel: 'information',
+  gameDataChannel: 'game-data',
+  gameRoleName: '— — — — — Games — — — — —',
 
   token: TOKEN,
+
+  guild: Guild.BAMBots,
 };

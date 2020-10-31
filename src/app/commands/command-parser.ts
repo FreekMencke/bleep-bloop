@@ -9,14 +9,14 @@ export class CommandParser {
 
     const command = message.toString().substring(1).split(' ');
 
-    switch(command[0]) {
+    switch (command[0]) {
       case 'react':
         this.react(message, command[1]);
         break;
       case 'delete-all':
       case 'da':
         const users = message.mentions.users.array();
-        if(users.length === 0) {
+        if (users.length === 0) {
           Logger.log(this.CLASS_NAME + ': COMMAND "delete-all" FROM', message.author!.username, 'CONTAINED NO PARAMETERS');
           await message.delete();
           break;
@@ -31,7 +31,7 @@ export class CommandParser {
   private async react(message: Message | PartialMessage, emote: string): Promise<any> {
     const emoteResult = message.guild!.emojis.cache.find(emoji => emoji.name === emote);
 
-    if(!emoteResult) {
+    if (!emoteResult) {
       Logger.log(this.CLASS_NAME + ': FAILED TO FIND EMOTE', `"${emote}"`);
       return message.delete();
     }
@@ -63,7 +63,7 @@ export class CommandParser {
 
   private getList(string: string[]): string {
     return string.reduce((acc, string) => {
-      if (acc.length> 0) acc += ', ';
+      if (acc.length > 0) acc += ', ';
       return acc += string;
     }, '');
   }
@@ -71,5 +71,4 @@ export class CommandParser {
   private getMention(user: User): string {
     return `<@!${user.id}>`;
   }
-
 }
