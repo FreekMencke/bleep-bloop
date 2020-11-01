@@ -5,7 +5,7 @@ export interface IConfig {
   gameCategory: string;
   gameRoleChannel: string;
   gameDataChannel: string;
-  gameRoleName: string;
+  gamesRoleName: string;
 
   token: string;
 

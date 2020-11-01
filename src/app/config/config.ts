@@ -8,7 +8,7 @@ export const config: IConfig = {
   gameCategory: 'games',
   gameRoleChannel: 'readme',
   gameDataChannel: 'game-data',
-  gameRoleName: '— — — — — Games — — — — —',
+  gamesRoleName: '· · · · · · · · · · · · · · · Games · · · · · · · · · · · · · · ·',
 
   token: TOKEN,
 
