@@ -1,15 +1,24 @@
-import { CategoryChannel, Client, Guild, Message, MessageReaction, Role, TextChannel, User } from 'discord.js';
+import {
+  CategoryChannel,
+  Client,
+  Guild,
+  Message,
+  MessageEmbed,
+  MessageReaction,
+  Role,
+  TextChannel,
+  User,
+} from 'discord.js';
 import { Logger } from '../common/logger';
 import { config } from '../config/config';
 import { Game, GameData } from './game-models';
 
 export class GameRoleManager {
   readonly CLASS_NAME: string = 'GAME_ROLE_MANAGER:';
-  readonly EXPLANATION: string = `**Toggle game roles by reacting with the corresponding emoji**
-    A game role gives you access to the corresponding text channel.\n`;
 
   guild!: Guild;
   everyoneRole!: Role;
+  gamesRole!: Role;
   botCategory!: CategoryChannel;
   gameCategory!: CategoryChannel;
   gameDataChannel!: TextChannel;
@@ -20,6 +29,9 @@ export class GameRoleManager {
     this.guild = await (await client.guilds.fetch(config.guild)).fetch();
 
     this.everyoneRole = this.guild.roles.cache.find(role => role.name === '@everyone')!;
+    this.gamesRole =
+      this.guild.roles.cache.find(role => role.name === config.gamesRoleName) ??
+      (await this.guild.roles.create({ data: { name: config.gamesRoleName, color: 'WHITE' } }));
 
     this.botCategory = (await this.guild.channels.cache
       .find(channel => channel.name === config.botCategory && channel.type === 'category')!
@@ -104,10 +116,8 @@ export class GameRoleManager {
       await guildMember.roles.remove(game.role!);
       Logger.log(this.CLASS_NAME, 'REMOVED ROLE', game.roleName, 'FROM USER', reactingUser.username);
     } else {
-      if (!guildMemberRoles.find(guildMemberRole => guildMemberRole.name === config.gameRoleName)) {
-        const gameRole = this.guild.roles.cache.find(role => role.name === config.gameRoleName);
-        if (gameRole) guildMember.roles.add(gameRole);
-      }
+      if (!guildMemberRoles.find(guildMemberRole => guildMemberRole.name === config.gamesRoleName))
+        await guildMember.roles.add(this.gamesRole);
       await guildMember.roles.add(game.role!);
       Logger.log(this.CLASS_NAME, 'ADDED ROLE', game.roleName, 'TO USER', reactingUser.username);
     }
@@ -200,7 +210,7 @@ export class GameRoleManager {
       .filter(message => message.author.id === message.client.user?.id && message.pinned);
 
     if (botMessages.length === 0) {
-      this.gameRoleMessage = await this.gameRoleChannel.send('Game message placeholder');
+      this.gameRoleMessage = await this.gameRoleChannel.send(new MessageEmbed().setTitle('Game Roles Placeholder'));
       await this.gameRoleMessage.pin();
 
       await this.gameRoleChannel.messages.fetch();
@@ -220,13 +230,7 @@ export class GameRoleManager {
     await this.gameRoleMessage.fetch();
 
     const games = (await this.fetchGames()).sort((a, b) => a.name.localeCompare(b.name));
-    const gamesText = games
-      .filter(game => game.emoji)
-      .reduce((acc, game) => {
-        if (acc.length > 0) acc += '\n';
-        return (acc += `${game.emoji} ${game.name}`);
-      }, '');
-    await this.gameRoleMessage.edit(this.EXPLANATION + gamesText);
+    await this.gameRoleMessage.edit(this.createGameRoleEmbed(games));
 
     const reactions = this.gameRoleMessage.reactions.cache.array().map(reaction => reaction.emoji.name);
     if (games.some(game => game.emoji && !reactions.includes(game.emoji))) {
@@ -236,6 +240,24 @@ export class GameRoleManager {
     } else Logger.log(this.CLASS_NAME, 'ALL GAME REACTIONS PRESENT');
 
     Logger.log(this.CLASS_NAME, 'FINISHED CREATING GAME ROLE MESSAGE');
+  }
+
+  private createGameRoleEmbed(games: Game[]): MessageEmbed {
+    const gamesText = games
+      .filter(game => game.emoji)
+      .reduce((acc, game) => {
+        if (acc.length > 0) acc += '\n';
+        return (acc += `${game.emoji}\u2003${game.name}`);
+      }, '');
+    return new MessageEmbed()
+      .setColor('#2f3136')
+      .setTitle('Opt-In Game Roles')
+      .setDescription(
+        `Self-assign game roles by using the respective emoji to toggle the role.
+        Roles give you access to its respective text-channel(s).`,
+      )
+      .addField('Games', gamesText)
+      .setFooter('To request a new game or channel please contact an admin.');
   }
 
   private async sortChannelsAndRoles() {
@@ -258,11 +280,12 @@ export class GameRoleManager {
   private async sortGameRoles() {
     const games = await this.fetchGames();
     const gameRoleNames = games.map(g => g.roleName);
+    gameRoleNames.push(config.gamesRoleName);
     const gameRoles = this.guild.roles.cache
       .filter(r => gameRoleNames.includes(r.name))
       .array()
       .sort((a, b) => b.name.localeCompare(a.name));
-    const gameRolePositions = gameRoles.map(r => r.position).sort();
+    const gameRolePositions = gameRoles.map(r => r.position).sort((a, b) => a - b);
     const rolePositions = gameRoles.map((role, index) => ({ role, position: gameRolePositions[index] }));
     await this.guild.setRolePositions(rolePositions);
 
