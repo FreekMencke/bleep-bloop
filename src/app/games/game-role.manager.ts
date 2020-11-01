@@ -53,7 +53,11 @@ export class GameRoleManager {
 
     this.gameDataChannel = (await (
       this.guild.channels.cache.find(channel => channel.name === config.gameDataChannel && channel.type === 'text') ??
-      (await this.guild.channels.create(config.gameDataChannel, { type: 'text', parent: this.botCategory }))
+      (await this.guild.channels.create(config.gameDataChannel, {
+        type: 'text',
+        parent: this.botCategory,
+        permissionOverwrites: [{ deny: ['VIEW_CHANNEL'], id: this.everyoneRole }],
+      }))
     ).fetch()) as TextChannel;
 
     Logger.log(this.CLASS_NAME, 'FOUND', config.gameRoleChannel, 'AND', config.gameDataChannel, 'TEXT CHANNEL.');
@@ -253,8 +257,7 @@ export class GameRoleManager {
       .setColor('#2f3136')
       .setTitle('Opt-In Game Roles')
       .setDescription(
-        `Self-assign game roles by using the respective emoji to toggle the role.
-        Roles give you access to its respective text-channel(s).`,
+        'Self-assign game roles by using the respective emoji to toggle the role.\nRoles give you access to the respective text-channel(s).',
       )
       .addField('Games', gamesText)
       .setFooter('To request a new game or channel please contact an admin.');
