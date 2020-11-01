@@ -25,5 +25,8 @@ jobs:
     - name: Lint
       run: npm run lint
 
+    - name: Create fake token
+      run: "echo \"export const TOKEN: string = '';\" > token.hidden.ts"
+
     - name: Build
       run: npm run build
