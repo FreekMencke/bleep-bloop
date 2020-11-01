@@ -89,13 +89,13 @@ export class GameRoleManager {
       const game = JSON.parse(message.content) as Game;
       const games = await this.fetchGameDatas();
 
-      if (games.find(g => g.channelName === game.channelName)) throw 'DUPLICATE CHANNEL NAME';
-
       const foundGame = games.find(g => g.id == game.id);
       if (foundGame) {
         Logger.log(this.CLASS_NAME, 'EXISTING GAME');
         await this.updateGame(foundGame, game);
       } else {
+        if (games.find(g => g.channelName === game.channelName)) throw 'DUPLICATE CHANNEL NAME';
+        if (games.find(g => game.emoji && g.emoji === game.emoji)) throw 'DUPLICATE EMOJI';
         Logger.log(this.CLASS_NAME, 'NEW GAME');
         await this.addGame(game);
       }
@@ -186,16 +186,20 @@ export class GameRoleManager {
     await this.guild.roles.fetch();
     const role =
       this.guild.roles.cache.find(role => role.name === gameInput.roleName) ??
-      (await this.guild.roles.create({ data: { name: gameInput.roleName, color: parseInt(gameInput.color, 16) } }));
+      (await this.guild.roles.create({
+        data: { name: gameInput.roleName, color: parseInt(gameInput.color, 16), mentionable: true },
+      }));
+    const channel =
+      this.guild.channels.cache.find(channel => gameInput.channelName === channel.name) ??
+      (await this.guild.channels.create(gameInput.channelName, {
+        type: 'text',
+        parent: this.gameCategory,
+      }));
+    await channel.overwritePermissions([
+      { deny: ['VIEW_CHANNEL'], id: this.everyoneRole },
+      { allow: ['VIEW_CHANNEL'], id: role },
+    ]);
     await this.gameDataChannel.send(JSON.stringify(gameInput));
-    await this.guild.channels.create(gameInput.channelName, {
-      type: 'text',
-      parent: this.gameCategory,
-      permissionOverwrites: [
-        { deny: ['VIEW_CHANNEL'], id: this.everyoneRole },
-        { allow: ['VIEW_CHANNEL'], id: role },
-      ],
-    });
     Logger.log(this.CLASS_NAME, 'ADDED GAME', gameInput.name, 'REFRESHING GAME ROLE MESSAGE');
   }
 
@@ -234,7 +238,7 @@ export class GameRoleManager {
     await this.gameRoleMessage.fetch();
 
     const games = (await this.fetchGames()).sort((a, b) => a.name.localeCompare(b.name));
-    await this.gameRoleMessage.edit(this.createGameRoleEmbed(games));
+    if (games.length) await this.gameRoleMessage.edit(this.createGameRoleEmbed(games));
 
     const reactions = this.gameRoleMessage.reactions.cache.array().map(reaction => reaction.emoji.name);
     if (games.some(game => game.emoji && !reactions.includes(game.emoji))) {

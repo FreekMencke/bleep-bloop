@@ -12,5 +12,5 @@ export const config: IConfig = {
 
   token: TOKEN,
 
-  guild: Guild.BAMBots,
+  guild: Guild.BAM_Jonge,
 };
