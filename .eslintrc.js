@@ -11,6 +11,7 @@ module.exports = {
     sourceType: "module",
   },
   plugins: ["@typescript-eslint"],
+  ignorePatterns: [".eslintrc.js"],
   rules: {
     "@typescript-eslint/indent": ["error", 2],
     "@typescript-eslint/member-delimiter-style": [
