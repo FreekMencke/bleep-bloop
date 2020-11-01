@@ -16,7 +16,7 @@ export class DeleteAllCommand implements Command {
 
     await Promise.all(
       this.users.map(async user => {
-        const userMessages = Array.from(channel.messages.cache.values())
+        const userMessages = channel.messages.cache
           .filter(msg => msg.author.id === user!.id)
           .filter(msg => msg.id !== this.message.id);
 
